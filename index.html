@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#12b76a">
+<title>식권 계산기</title>
+<style>
+/* =========================================================
+   식권 계산기 — 모바일 웹
+   미니멀(기본) / 다크네온 모드 전환
+   ========================================================= */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+:root{
+  --brand:#12b76a; --brand-d:#0e9f5c;
+  --bg:#f4f6f8; --card:#ffffff; --line:#eceef1;
+  --txt:#1a1d20; --sub:#8b9299; --muted:#b3b9bf;
+  --danger:#f04438; --danger-bg:#fef3f2;
+  --ok:#12b76a; --ok-bg:#ecfdf3;
+  --radius:16px; --shadow:0 1px 2px rgba(16,24,40,.06);
+  --hero-bg:#ffffff; --hero-txt:#1a1d20; --hero-sub:#8b9299;
+  --chip:#f2f4f7; --appbg:#f4f6f8;
+  --font:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',
+         'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+}
+/* ---------- 컨셉 2 : 다크 네온 ---------- */
+[data-concept="dark"]{
+  --brand:#2bff9d; --brand-d:#00e58a;
+  --bg:#0d1117; --card:#161b22; --line:#232a33;
+  --txt:#e6edf3; --sub:#8b949e; --muted:#5a6572;
+  --danger:#ff5c5c; --danger-bg:#2a1517;
+  --ok:#2bff9d; --ok-bg:#0f2a1f;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+  --hero-bg:linear-gradient(135deg,#0f2f24,#12241d);
+  --hero-txt:#eafff5; --hero-sub:#7fd8b4;
+  --chip:#1c232c; --appbg:#0d1117;
+}
+html,body{ background:var(--appbg); color:var(--txt); font-family:var(--font);
+  transition:background .25s; }
+body{ max-width:480px; margin:0 auto; min-height:100vh; padding-bottom:132px;
+  position:relative; overflow-x:hidden; }
+
+/* ===== 상단 앱바 ===== */
+.appbar{ position:sticky; top:0; z-index:30; background:var(--card);
+  border-bottom:1px solid var(--line); padding:14px 18px 12px; }
+.appbar .row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.rest-sel{ display:flex; align-items:center; gap:7px; font-weight:800; font-size:18px;
+  background:none; border:none; color:var(--txt); cursor:pointer; }
+.rest-sel .cv{ color:var(--brand); }
+.rest-sel .arw{ color:var(--muted); font-size:13px; }
+.badge{ font-size:11px; font-weight:700; color:var(--brand); background:var(--chip);
+  padding:4px 9px; border-radius:999px; }
+.appbar-r{ display:flex; align-items:center; gap:8px; }
+.share-btn{ display:flex; align-items:center; gap:5px; font-size:12.5px; font-weight:800;
+  color:#fff; background:var(--brand); border:none; padding:7px 12px; border-radius:999px; cursor:pointer; }
+.share-btn:active{ transform:scale(.94); }
+[data-concept="dark"] .share-btn{ color:#04140d; }
+
+/* 토스트 */
+.toast{ position:fixed; left:50%; bottom:150px; transform:translateX(-50%) translateY(10px);
+  background:rgba(20,24,30,.94); color:#fff; font-size:14px; font-weight:700; padding:12px 20px;
+  border-radius:999px; z-index:100; opacity:0; pointer-events:none; transition:.25s; }
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* 다크모드 토글 */
+.modebar{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+.mode-lbl{ font-size:12.5px; font-weight:700; color:var(--sub); }
+.switch{ width:50px; height:29px; border-radius:999px; border:none; cursor:pointer;
+  background:var(--chip); position:relative; transition:background .2s; padding:0; }
+.switch i{ position:absolute; top:3px; left:3px; width:23px; height:23px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .2s, background .2s; }
+.switch.on{ background:var(--brand); }
+.switch.on i{ transform:translateX(21px); background:#04140d; }
+
+/* ===== 히어로: 예산 / 잔액 ===== */
+.hero{ margin:14px 16px 0; background:var(--hero-bg); color:var(--hero-txt);
+  border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); }
+.hero .lbl{ font-size:12.5px; color:var(--hero-sub); font-weight:600; }
+.hero .big{ font-size:34px; font-weight:800; letter-spacing:-1px; margin-top:2px; }
+.hero .big small{ font-size:16px; font-weight:700; opacity:.7; margin-left:2px; }
+.hero .barwrap{ height:8px; border-radius:999px; background:rgba(128,128,128,.22);
+  margin:14px 0 10px; overflow:hidden; }
+.hero .bar{ height:100%; width:0%; border-radius:999px; background:var(--brand);
+  transition:width .3s ease, background .2s; }
+.hero .split{ display:flex; justify-content:space-between; font-size:13px; }
+.hero .split .v{ font-weight:800; }
+.hero.over .bar{ background:var(--danger); }
+
+/* ===== 식권 개수 스텝퍼 ===== */
+.ticket{ margin:14px 16px 0; background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); padding:14px 18px; display:flex; align-items:center;
+  justify-content:space-between; box-shadow:var(--shadow); }
+.ticket .t-l .k{ font-weight:800; font-size:15px; }
+.ticket .t-l .s{ font-size:12px; color:var(--sub); margin-top:1px; }
+.stepper{ display:flex; align-items:center; gap:2px; }
+.stepper button{ width:38px; height:38px; border-radius:11px; border:1px solid var(--line);
+  background:var(--chip); color:var(--txt); font-size:22px; font-weight:600; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; line-height:1; }
+.stepper button:active{ transform:scale(.92); }
+.stepper .num{ min-width:42px; text-align:center; font-weight:800; font-size:18px; }
+
+/* ===== 카테고리 탭 ===== */
+.cats{ position:sticky; top:57px; z-index:20; display:flex; gap:8px; overflow-x:auto;
+  padding:14px 16px 6px; background:var(--appbg); scrollbar-width:none; }
+.cats::-webkit-scrollbar{ display:none; }
+.cats button{ white-space:nowrap; font-size:13px; font-weight:700; padding:8px 15px;
+  border-radius:999px; border:1px solid var(--line); background:var(--card);
+  color:var(--sub); cursor:pointer; }
+.cats button.on{ background:var(--txt); color:var(--card); border-color:var(--txt); }
+[data-concept="dark"] .cats button.on{ background:var(--brand); color:#04140d; border-color:var(--brand); }
+
+/* ===== 메뉴 리스트 ===== */
+.section{ padding:6px 16px 0; }
+.section h3{ font-size:15px; font-weight:800; margin:16px 2px 8px; }
+.item{ display:flex; gap:13px; align-items:center; background:var(--card);
+  border:1px solid var(--line); border-radius:var(--radius); padding:12px 13px;
+  margin-bottom:10px; box-shadow:var(--shadow); }
+.item .thumb{ width:60px; height:60px; border-radius:13px; flex:none;
+  background:var(--chip); display:flex; align-items:center; justify-content:center;
+  font-size:26px; overflow:hidden; }
+.item .thumb img{ width:100%; height:100%; object-fit:cover; }
+.item .info{ flex:1; min-width:0; }
+.item .nm{ font-weight:700; font-size:14.5px; }
+.item .ds{ font-size:12px; color:var(--sub); margin-top:1px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.item .pr{ font-weight:800; font-size:15px; margin-top:5px; }
+.item .pr small{ font-size:12px; font-weight:600; color:var(--sub); }
+.item.active{ border-color:var(--brand); }
+
+.qty{ display:flex; align-items:center; gap:0; flex:none; }
+.qty button{ width:32px; height:32px; border-radius:9px; border:1px solid var(--line);
+  background:var(--chip); color:var(--txt); font-size:19px; font-weight:600; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; line-height:1; }
+.qty .add{ background:var(--brand); color:#fff; border-color:var(--brand); }
+[data-concept="dark"] .qty .add{ color:#04140d; }
+.qty button:active{ transform:scale(.9); }
+.qty .n{ min-width:30px; text-align:center; font-weight:800; font-size:15px; }
+.qty.zero .minus,.qty.zero .n{ display:none; }
+
+/* ===== 하단 요약 바 ===== */
+.dock{ position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%;
+  max-width:480px; z-index:40; background:var(--card); border-top:1px solid var(--line);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom)); box-shadow:0 -4px 16px rgba(16,24,40,.06); }
+.dock .top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:9px; }
+.dock .top .l{ font-size:12.5px; color:var(--sub); font-weight:600; }
+.dock .top .amt{ font-size:15px; font-weight:800; }
+.dock .top .amt.over{ color:var(--danger); }
+.dock .top .amt.ok{ color:var(--ok); }
+.dock .cta{ display:flex; gap:9px; }
+.dock .cta button{ border:none; border-radius:13px; font-weight:800; font-size:15px;
+  padding:14px; cursor:pointer; }
+.dock .cta .list{ flex:none; width:120px; background:var(--chip); color:var(--txt); }
+.dock .cta .pay{ flex:1; background:var(--brand); color:#fff; }
+[data-concept="dark"] .dock .cta .pay{ color:#04140d; }
+.dock .cta .pay:disabled{ opacity:.45; }
+
+/* 초과 경고 */
+.warn{ font-size:12px; font-weight:700; color:var(--danger); background:var(--danger-bg);
+  padding:8px 12px; border-radius:10px; margin-bottom:9px; display:none; }
+.warn.show{ display:block; }
+
+/* ===== 구매 목록 바텀시트 ===== */
+.scrim{ position:fixed; inset:0; background:rgba(10,14,20,.5); z-index:50; opacity:0;
+  pointer-events:none; transition:.25s; }
+.scrim.show{ opacity:1; pointer-events:auto; }
+.sheet{ position:fixed; bottom:0; left:50%; transform:translateX(-50%) translateY(100%);
+  width:100%; max-width:480px; background:var(--card); z-index:60;
+  border-radius:22px 22px 0 0; padding:8px 18px calc(20px + env(safe-area-inset-bottom));
+  transition:transform .28s cubic-bezier(.3,.9,.3,1); max-height:78vh; overflow-y:auto; }
+.sheet.show{ transform:translateX(-50%) translateY(0); }
+.sheet .grip{ width:40px; height:4px; border-radius:99px; background:var(--line);
+  margin:8px auto 14px; }
+.sheet h2{ font-size:18px; font-weight:800; margin-bottom:4px; }
+.sheet .empty{ text-align:center; color:var(--sub); padding:34px 0; font-size:14px; }
+.li{ display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+.li .nm{ flex:1; font-size:14.5px; font-weight:700; }
+.li .nm small{ display:block; font-size:12px; color:var(--sub); font-weight:600; margin-top:2px; }
+.li .lq{ display:flex; align-items:center; gap:0; }
+.li .lq button{ width:28px; height:28px; border-radius:8px; border:1px solid var(--line);
+  background:var(--chip); color:var(--txt); font-size:17px; font-weight:600; cursor:pointer; }
+.li .lq .n{ min-width:26px; text-align:center; font-weight:800; font-size:14px; }
+.li .lp{ min-width:66px; text-align:right; font-weight:800; font-size:14.5px; }
+.sheet .totrow{ display:flex; justify-content:space-between; padding:16px 0 4px; font-size:16px; }
+.sheet .totrow .v{ font-weight:800; }
+.sheet .bal{ display:flex; justify-content:space-between; padding:6px 0; font-size:14px; }
+.sheet .bal .v.over{ color:var(--danger); } .sheet .bal .v.ok{ color:var(--ok); }
+.sheet .staff-cta{ width:100%; margin-top:16px; padding:16px; border-radius:14px; border:none;
+  background:var(--brand); color:#fff; font-weight:800; font-size:16px; cursor:pointer; }
+[data-concept="dark"] .sheet .staff-cta{ color:#04140d; }
+.sheet .clear{ width:100%; margin-top:10px; padding:13px; border-radius:12px; border:1px solid var(--line);
+  background:transparent; color:var(--sub); font-weight:700; font-size:14px; cursor:pointer; }
+
+/* ===== 직원용 큰 글씨 주문서 (전체화면) ===== */
+.staff{ position:fixed; inset:0; left:50%; z-index:80; width:100%; max-width:480px;
+  background:var(--card); color:var(--txt); display:flex; flex-direction:column;
+  transform:translateX(-50%) translateY(100%); transition:transform .3s cubic-bezier(.3,.9,.3,1); }
+.staff.show{ transform:translateX(-50%) translateY(0); }
+.staff-bar{ position:sticky; top:0; display:flex; align-items:center; justify-content:space-between;
+  padding:16px 18px; border-bottom:1px solid var(--line); background:var(--card); }
+.staff-title{ font-size:17px; font-weight:800; }
+.staff-close{ font-size:15px; font-weight:800; color:var(--sub); background:var(--chip);
+  border:none; padding:9px 15px; border-radius:12px; cursor:pointer; }
+.staff-inner{ flex:1; overflow-y:auto; padding:18px 20px calc(28px + env(safe-area-inset-bottom)); }
+.staff-head{ text-align:center; margin-bottom:10px; }
+.staff-head .rn{ font-size:20px; font-weight:800; }
+.staff-head .tk{ display:inline-block; margin-top:10px; font-size:16px; font-weight:800;
+  color:var(--brand); background:var(--chip); padding:8px 16px; border-radius:999px; }
+.s-item{ display:flex; align-items:center; justify-content:space-between; gap:14px;
+  padding:20px 2px; border-bottom:2px solid var(--line); }
+.s-item .nm{ font-size:24px; font-weight:800; line-height:1.25; }
+.s-item .nm small{ display:block; font-size:15px; font-weight:600; color:var(--sub); margin-top:3px; }
+.s-item .qb{ flex:none; font-size:30px; font-weight:900; color:var(--brand);
+  min-width:72px; text-align:right; letter-spacing:-1px; }
+.s-total{ margin-top:24px; padding:24px; border-radius:20px; background:var(--chip); text-align:center; }
+.s-total .t-lbl{ font-size:16px; font-weight:700; color:var(--sub); }
+.s-total .t-amt{ font-size:46px; font-weight:900; letter-spacing:-2px; margin-top:4px; }
+.s-total .t-bal{ font-size:18px; font-weight:800; margin-top:10px; }
+.s-total .t-bal.over{ color:var(--danger); } .s-total .t-bal.ok{ color:var(--ok); }
+.s-note{ text-align:center; font-size:14px; color:var(--sub); margin-top:16px; font-weight:600; }
+
+/* 식당 선택 시트 재사용 */
+.rlist button{ display:flex; width:100%; align-items:center; justify-content:space-between;
+  padding:15px 4px; border:none; border-bottom:1px solid var(--line); background:none;
+  color:var(--txt); font-size:15px; font-weight:700; cursor:pointer; }
+.rlist button:disabled{ color:var(--muted); cursor:not-allowed; }
+.rlist button .tag{ font-size:11px; font-weight:700; color:var(--sub); background:var(--chip);
+  padding:3px 9px; border-radius:99px; }
+.rlist button.cur .tag{ color:var(--brand); }
+</style>
+</head>
+<body data-concept="minimal">
+
+  <!-- 앱바 -->
+  <header class="appbar">
+    <div class="row">
+      <button class="rest-sel" onclick="openRest()">
+        <span id="restName">샐러리아</span>
+        <span class="cv" id="restVoucher">· 1만원권</span>
+        <span class="arw">▾</span>
+      </button>
+      <div class="appbar-r">
+        <span class="badge">방문식사</span>
+        <button class="share-btn" onclick="shareSite()" aria-label="링크 공유">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>
+          <span>공유</span>
+        </button>
+      </div>
+    </div>
+    <div class="modebar">
+      <span class="mode-lbl" id="modeLbl">☀️ 라이트 모드</span>
+      <button class="switch" id="modeSwitch" onclick="toggleMode()" aria-label="다크모드 전환"><i></i></button>
+    </div>
+  </header>
+
+  <!-- 히어로 -->
+  <section class="hero" id="hero">
+    <div class="lbl" id="heroLbl">남은 금액</div>
+    <div class="big"><span id="heroBig">10,000</span><small>원</small></div>
+    <div class="barwrap"><div class="bar" id="heroBar"></div></div>
+    <div class="split">
+      <span>예산 <b class="v" id="heroBudget">10,000원</b></span>
+      <span>사용 <b class="v" id="heroUsed">0원</b></span>
+    </div>
+  </section>
+
+  <!-- 식권 개수 -->
+  <section class="ticket">
+    <div class="t-l">
+      <div class="k" id="ticketK">1만원 권</div>
+      <div class="s">사용할 식권 개수</div>
+    </div>
+    <div class="stepper">
+      <button onclick="stepTicket(-1)">−</button>
+      <span class="num" id="ticketNum">1</span>
+      <button onclick="stepTicket(1)">＋</button>
+    </div>
+  </section>
+
+  <!-- 카테고리 탭 -->
+  <nav class="cats" id="cats"></nav>
+
+  <!-- 메뉴 -->
+  <main id="menu"></main>
+
+  <!-- 하단 요약 -->
+  <div class="dock">
+    <div class="warn" id="warn"></div>
+    <div class="top">
+      <span class="l">담은 금액 <b id="dockUsed" style="color:var(--txt)">0원</b></span>
+      <span class="amt ok" id="dockBal">남은 10,000원</span>
+    </div>
+    <div class="cta">
+      <button class="list" onclick="openSheet()">목록 <span id="dockCount">0</span></button>
+      <button class="pay" id="payBtn" disabled>담기</button>
+    </div>
+  </div>
+
+  <!-- 구매 목록 시트 -->
+  <div class="scrim" id="scrim" onclick="closeAll()"></div>
+  <div class="sheet" id="sheet">
+    <div class="grip"></div>
+    <h2>구매 목록</h2>
+    <div id="sheetBody"></div>
+  </div>
+
+  <!-- 식당 선택 시트 -->
+  <div class="sheet" id="restSheet">
+    <div class="grip"></div>
+    <h2>식당 선택</h2>
+    <div class="rlist" id="restList"></div>
+  </div>
+
+  <!-- 토스트 -->
+  <div class="toast" id="toast"></div>
+
+  <!-- 직원에게 보여주는 큰 글씨 주문서 -->
+  <div class="staff" id="staffView">
+    <div class="staff-bar">
+      <span class="staff-title">주문 내역</span>
+      <button class="staff-close" onclick="closeStaff()">✕ 닫기</button>
+    </div>
+    <div class="staff-inner" id="staffBody"></div>
+  </div>
+
+<script>
+/* =========================================================
+   1) 데이터 — 식당 & 메뉴 카탈로그
+   나중에 메뉴/식당 추가 시 이 부분만 수정하면 됩니다.
+   price 단위: 원. thumb: 이모지 또는 이미지 URL.
+   ========================================================= */
+const RESTAURANTS = {
+  salleria: {
+    name: 'SALARIA',
+    shortName: '샐러리아 (가온그룹점)',
+    voucher: 10000,          // 식권 1장 금액
+    voucherLabel: '1만원 권',
+    enabled: true,
+    categories: [
+      { name:'제로음료 Zero drink', items:[
+        { id:'z01', name:'제로 칼로리 콤부차 레몬', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z02', name:'제로 칼로리 콤부차 히비스커스', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z03', name:'제로 칼로리 콤부차 복숭아', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z04', name:'제로 칼로리 콤부차 샤인머스캣', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z05', name:'제로 칼로리 힐링톡톡 플레인', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z06', name:'제로 칼로리 힐링톡톡 아쿠아', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z07', name:'제로 칼로리 힐링톡톡 빌베리', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z08', name:'제로 칼로리 타우린 비타S', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z09', name:'제로 칼로리 복숭아 아이스티', price:3500, thumb:'🧃', desc:'ONLY ICE' },
+        { id:'z10', name:'제로 칼로리 레몬 아이스티', price:3500, thumb:'🧃', desc:'ONLY ICE' },
+        { id:'z11', name:'제로 칼로리 자몽 콜라겐 석류차', price:2900, thumb:'🥤', desc:'ONLY ICE' },
+        { id:'z12', name:'제로 칼로리 수박에이드', price:4500, thumb:'🍉', desc:'ONLY ICE' },
+        { id:'z13', name:'제로 칼로리 청포도에이드', price:4000, thumb:'🍇', desc:'ONLY ICE' },
+      ]},
+      { name:'스무디 Smoothie', items:[
+        { id:'sm1', name:'딸기 스무디', price:4400, thumb:'🍓', desc:'ONLY ICE' },
+        { id:'sm2', name:'망고 스무디', price:4400, thumb:'🥭', desc:'ONLY ICE' },
+        { id:'sm3', name:'딸기요거트 스무디', price:4400, thumb:'🍓', desc:'ONLY ICE' },
+        { id:'sm4', name:'망고요거트 스무디', price:4400, thumb:'🥭', desc:'ONLY ICE' },
+        { id:'sm5', name:'플레인요거트 스무디', price:4400, thumb:'🥛', desc:'ONLY ICE' },
+      ]},
+      { name:'티 Tea', items:[
+        { id:'t1', name:'복숭아 아이스티', price:3800, thumb:'🍑', desc:'ONLY ICE' },
+        { id:'t2', name:'얼그레이티', price:2900, thumb:'🍵', desc:'' },
+        { id:'t3', name:'페퍼민트티', price:2900, thumb:'🍵', desc:'' },
+        { id:'t4', name:'캐모마일티', price:2900, thumb:'🍵', desc:'' },
+        { id:'t5', name:'히비스커스티', price:2900, thumb:'🍵', desc:'' },
+        { id:'t6', name:'잉글리쉬브렉퍼스트티', price:2900, thumb:'🍵', desc:'' },
+      ]},
+      { name:'기능성음료 Health', items:[
+        { id:'h1', name:'키토방탄커피', price:4900, thumb:'☕', desc:'' },
+        { id:'h2', name:'단백질쉐이크 (비아커피믹스)', price:4600, thumb:'💪', desc:'ONLY ICE' },
+        { id:'h3', name:'프로틴 쉐이크 (밀크초코)', price:5000, thumb:'💪', desc:'330ml · ONLY ICE' },
+        { id:'h4', name:'ABC 해독주스', price:4900, thumb:'🧃', desc:'330ml · ONLY ICE · 사과/사과+당근/사과+케일/사과+비트+당근' },
+      ]},
+    ],
+  },
+  // 나중에 다른 식당 추가 예시 (구조만) —
+  // sample: { name:'○○식당', voucher:10000, voucherLabel:'1만원 권', enabled:false, categories:[...] }
+};
+
+/* =========================================================
+   2) 상태
+   ========================================================= */
+let currentRest = 'salleria';
+let ticketCount = 1;
+let qty = {};   // { itemId: 수량 }
+let activeCat = null;   // null = 전체, 그 외 = 카테고리명 (선택 시 해당 카탈로그만 표시)
+
+const KRW = n => n.toLocaleString('ko-KR') + '원';
+const $ = id => document.getElementById(id);
+
+function rest(){ return RESTAURANTS[currentRest]; }
+function budget(){ return ticketCount * rest().voucher; }
+function itemById(id){
+  for(const c of rest().categories) for(const it of c.items) if(it.id===id) return it;
+  return null;
+}
+function usedTotal(){
+  let t=0; for(const id in qty) if(qty[id]>0){ const it=itemById(id); if(it) t+=it.price*qty[id]; }
+  return t;
+}
+function itemCount(){ let n=0; for(const id in qty) n+=qty[id]||0; return n; }
+
+/* =========================================================
+   3) 렌더
+   ========================================================= */
+function renderCats(){
+  const cats = rest().categories;
+  const tabs = [`<button data-cat="__all" class="${activeCat===null?'on':''}">전체</button>`]
+    .concat(cats.map(c=>`<button data-cat="${escAttr(c.name)}" class="${activeCat===c.name?'on':''}">${c.name}</button>`));
+  $('cats').innerHTML = tabs.join('');
+}
+function escAttr(s){ return s.replace(/"/g,'&quot;'); }
+function slug(s){ return 'cat_'+encodeURIComponent(s).replace(/%/g,''); }
+
+function renderMenu(){
+  const shown = rest().categories.filter(c => activeCat===null || c.name===activeCat);
+  $('menu').innerHTML = shown.map(c=>{
+    const items = c.items.map(it=>{
+      const q = qty[it.id]||0;
+      return `<div class="item ${q>0?'active':''}">
+        <div class="thumb">${thumbHTML(it.thumb)}</div>
+        <div class="info">
+          <div class="nm">${it.name}</div>
+          <div class="ds">${it.desc||''}</div>
+          <div class="pr">${it.price.toLocaleString('ko-KR')}<small> 원</small></div>
+        </div>
+        <div class="qty ${q>0?'':'zero'}">
+          <button class="minus" onclick="chg('${it.id}',-1)">−</button>
+          <span class="n">${q}</span>
+          <button class="add" onclick="chg('${it.id}',1)">＋</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<section class="section" id="${slug(c.name)}"><h3>${c.name}</h3>${items}</section>`;
+  }).join('');
+}
+function thumbHTML(t){
+  if(!t) return '🍽️';
+  return /^https?:|\.(png|jpe?g|webp|gif|svg)$/i.test(t) ? `<img src="${t}" alt="">` : t;
+}
+
+function renderSummary(){
+  const b=budget(), u=usedTotal(), diff=b-u, over=u>b;
+  const pct = b>0 ? Math.min(100, u/b*100) : 0;
+
+  // 히어로
+  $('heroLbl').textContent = over ? '초과 금액' : '남은 금액';
+  $('heroBig').textContent = Math.abs(diff).toLocaleString('ko-KR');
+  $('heroBudget').textContent = KRW(b);
+  $('heroUsed').textContent = KRW(u);
+  $('heroBar').style.width = pct+'%';
+  $('hero').classList.toggle('over', over);
+
+  // 도크
+  $('dockUsed').textContent = KRW(u);
+  const bal=$('dockBal');
+  bal.textContent = over ? `초과 ${KRW(u-b)}` : `남은 ${KRW(diff)}`;
+  bal.className = 'amt '+(over?'over':'ok');
+  $('dockCount').textContent = itemCount();
+  const pay=$('payBtn');
+  pay.disabled = u===0;
+  pay.textContent = over ? '예산 초과' : (u===0 ? '담기' : `담기 · ${KRW(u)}`);
+
+  // 경고
+  const w=$('warn');
+  if(over){ w.textContent = `⚠️ 식권 예산을 ${KRW(u-b)} 초과했어요. 식권을 늘리거나 메뉴를 줄여보세요.`; w.classList.add('show'); }
+  else w.classList.remove('show');
+
+  renderSheet();
+}
+
+function renderSheet(){
+  const rows=[]; let u=0;
+  for(const c of rest().categories) for(const it of c.items){
+    const q=qty[it.id]||0; if(q<=0) continue; u+=it.price*q;
+    rows.push(`<div class="li">
+      <div class="nm">${it.name}<small>${it.price.toLocaleString('ko-KR')}원 × ${q}</small></div>
+      <div class="lq">
+        <button onclick="chg('${it.id}',-1)">−</button>
+        <span class="n">${q}</span>
+        <button onclick="chg('${it.id}',1)">＋</button>
+      </div>
+      <div class="lp">${KRW(it.price*q)}</div>
+    </div>`);
+  }
+  const b=budget(), over=u>b;
+  const body = rows.length ? rows.join('') +
+    `<div class="totrow"><span>합계</span><span class="v">${KRW(u)}</span></div>
+     <div class="bal"><span>${over?'초과 금액':'남은 금액'} (예산 ${KRW(b)})</span>
+       <span class="v ${over?'over':'ok'}">${over?'-':''}${KRW(Math.abs(b-u))}</span></div>
+     <button class="staff-cta" onclick="openStaff()">🧾 직원에게 보여주기</button>
+     <button class="clear" onclick="clearAll()">전체 비우기</button>`
+    : `<div class="empty">아직 담은 메뉴가 없어요.<br>메뉴에서 ＋ 를 눌러 담아보세요.</div>`;
+  $('sheetBody').innerHTML = body;
+}
+
+/* =========================================================
+   4) 조작
+   ========================================================= */
+function chg(id,d){
+  qty[id]=Math.max(0,(qty[id]||0)+d);
+  if(qty[id]===0) delete qty[id];
+  renderMenu(); renderSummary();
+}
+function stepTicket(d){
+  ticketCount=Math.max(1,Math.min(20,ticketCount+d));
+  $('ticketNum').textContent=ticketCount;
+  renderSummary();
+}
+function clearAll(){ qty={}; renderMenu(); renderSummary(); }
+
+// 카탈로그 탭: 누르면 해당 카테고리만 표시 (전체 스크롤 제거)
+$('cats').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const cat=b.dataset.cat;
+  activeCat = (cat==='__all') ? null : cat;
+  document.querySelectorAll('.cats button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  renderMenu();
+  // 필터된 목록이 탭 바로 아래에서 보이도록 위치 이동
+  const y = $('menu').offsetTop - 104;
+  window.scrollTo({ top: Math.max(0, y), behavior:'smooth' });
+});
+
+/* 다크모드 토글 (기본: 미니멀 라이트) */
+function toggleMode(){
+  const dark = document.body.dataset.concept!=='dark';
+  document.body.dataset.concept = dark ? 'dark' : 'minimal';
+  document.getElementById('modeSwitch').classList.toggle('on', dark);
+  document.getElementById('modeLbl').textContent = dark ? '🌙 다크 모드' : '☀️ 라이트 모드';
+  document.querySelector('meta[name=theme-color]').setAttribute('content', dark ? '#0d1117' : '#12b76a');
+}
+
+/* 사이트 링크 공유 */
+async function shareSite(){
+  const url = location.href;
+  if(navigator.share){
+    try{ await navigator.share({ title:'식권 계산기', text:'샐러리아 식권 계산기', url }); }
+    catch(e){ /* 사용자가 취소 */ }
+    return;
+  }
+  try{ await navigator.clipboard.writeText(url); toast('링크가 복사됐어요 📋'); }
+  catch(_){ window.prompt('아래 주소를 복사하세요', url); }
+}
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* 직원용 큰 글씨 주문서 */
+function renderStaff(){
+  const rows=[]; let u=0, n=0;
+  for(const c of rest().categories) for(const it of c.items){
+    const q=qty[it.id]||0; if(q<=0) continue; u+=it.price*q; n+=q;
+    rows.push(`<div class="s-item">
+      <div class="nm">${it.name}<small>${it.price.toLocaleString('ko-KR')}원</small></div>
+      <div class="qb">×${q}</div>
+    </div>`);
+  }
+  const b=budget(), over=u>b;
+  const head = `<div class="staff-head">
+      <div class="rn">${rest().name}</div>
+      <div class="tk">${rest().voucherLabel} ${ticketCount}장 · 총 ${itemCount()}개</div>
+    </div>`;
+  const total = `<div class="s-total">
+      <div class="t-lbl">합계 금액</div>
+      <div class="t-amt">${KRW(u)}</div>
+      <div class="t-bal ${over?'over':'ok'}">${over?`식권 초과 · 추가 결제 ${KRW(u-b)}`:`남은 식권 ${KRW(b-u)}`}</div>
+    </div>
+    <div class="s-note">위 내역으로 주문 부탁드립니다 🙏</div>`;
+  $('staffBody').innerHTML = rows.length ? head+rows.join('')+total
+    : `<div class="empty" style="padding:60px 0">담은 메뉴가 없습니다.</div>`;
+}
+function openStaff(){ renderStaff(); $('staffView').classList.add('show'); }
+function closeStaff(){ $('staffView').classList.remove('show'); }
+
+/* 바텀시트 */
+function openSheet(){ renderSheet(); $('scrim').classList.add('show'); $('sheet').classList.add('show'); }
+function openRest(){ renderRestList(); $('scrim').classList.add('show'); $('restSheet').classList.add('show'); }
+function closeAll(){ $('scrim').classList.remove('show'); $('sheet').classList.remove('show'); $('restSheet').classList.remove('show'); }
+
+function renderRestList(){
+  $('restList').innerHTML = Object.entries(RESTAURANTS).map(([k,r])=>
+    `<button class="${k===currentRest?'cur':''}" ${r.enabled?'':'disabled'} onclick="pickRest('${k}')">
+      <span>${r.shortName||r.name}</span>
+      <span class="tag">${k===currentRest?'선택됨':(r.enabled?r.voucherLabel:'준비중')}</span>
+    </button>`).join('') +
+    `<button disabled><span>+ 다른 식당 추가 예정</span><span class="tag">준비중</span></button>`;
+}
+function pickRest(k){
+  if(!RESTAURANTS[k]?.enabled) return;
+  currentRest=k; qty={}; ticketCount=1;
+  initRest(); closeAll();
+}
+
+function initRest(){
+  const r=rest();
+  activeCat = r.categories.length ? r.categories[0].name : null;  // 기본: 첫 카탈로그만 표시
+  $('restName').textContent=r.name;
+  $('restVoucher').textContent='· '+r.voucherLabel;
+  $('ticketK').textContent=r.voucherLabel;
+  $('ticketNum').textContent=ticketCount;
+  renderCats(); renderMenu(); renderSummary();
+}
+
+initRest();
+</script>
+</body>
+</html>
